@@ -1,11 +1,13 @@
 variable "aws_access_key" {
-  type    = string
-  default = ""
+  description = "AWS access key for authentication"
+  type        = string
+  sensitive   = true
 }
 
 variable "aws_secret_key" {
-  type    = string
-  default = ""
+  description = "AWS secret key for authentication"
+  type        = string
+  sensitive   = true
 }
 
 variable "aws_region" {

@@ -8,6 +8,7 @@ resource "aws_instance" "EC2_instance" {
   ami           = var.aws_image_id
   instance_type = var.aws_instance_type
   key_name      = var.aws_key_name
+  user_data     = file("${path.module}/files/install.sh")
 
   ebs_block_device {
     device_name = "/dev/sda1"
@@ -32,13 +33,14 @@ resource "aws_security_group" "SG_Terrafrom" {
 
 resource "aws_security_group_rule" "ingress_rule" {
   for_each = {
-    "ssh"  = { from_port = 22, to_port = 22, description = "SSH access" }
-    "http" = { from_port = 80, to_port = 80, description = "HTTP access" }
+    "ssh"  = { from_port = 22, to_port = 22, protocol = "tcp", description = "SSH access" }
+    "http" = { from_port = 80, to_port = 80, protocol = "tcp", description = "HTTP access" }
+    "icmp" = { from_port = -1, to_port = -1, protocol = "icmp", description = "ICMP ping" }
   }
   type              = "ingress"
   from_port         = each.value.from_port
   to_port           = each.value.to_port
-  protocol          = "tcp"
+  protocol          = each.value.protocol
   cidr_blocks       = ["0.0.0.0/0"]
   description       = each.value.description
   security_group_id = aws_security_group.SG_Terrafrom.id
