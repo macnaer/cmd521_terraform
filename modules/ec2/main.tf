@@ -1,3 +1,9 @@
+###############################################################################
+# MODULE: ec2                                                                #
+# Address prefix in state/plan:  module.ec2                                  #
+# Provisions:  2 EC2 instances + shared Security Group                        #
+###############################################################################
+
 resource "aws_instance" "primary" {
   ami           = var.aws_image_id
   instance_type = var.aws_instance_type

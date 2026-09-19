@@ -98,7 +98,97 @@ terraform destroy
 
 ---
 
-## 5. Структура проєкту
+## 5. Як знати, який модуль виконується
+
+Кожен ресурс Terraform має **адресу**, що починається з імені модуля. Це
+найнадійніший спосіб побачити, що і звідки створюється/змінюється/знищується.
+
+### 5.1. Префікси адрес (state та plan)
+
+| Префікс адреси | Модуль | Що створює |
+|----------------|--------|-----------|
+| `module.ec2.*`                    | `modules/ec2` | 2× EC2 + SG + 4 SG rules |
+| `module.s3_static_website.*`      | `modules/s3-static-website` | 1× bucket + ~10 bucket-resources + ~50 файлів |
+
+Приклад з `terraform plan`:
+
+```
+  # module.ec2.aws_instance.primary                will be created
+  # module.ec2.aws_security_group.this             will be created
+  # module.s3_static_website.aws_s3_bucket.this    will be created
+  # module.s3_static_website.aws_s3_object.files["index.html"]  will be created
+```
+
+### 5.2. Корисні команди для інспекції
+
+```powershell
+# Усі ресурси з префіксом модуля
+terraform state list
+terraform state list | Select-String "module\.ec2"
+terraform state list | Select-String "module\.s3_static_website"
+
+# Скільки ресурсів у кожному модулі
+terraform state list | Select-String "module\.ec2"                  | Measure-Object | Select-Object -ExpandProperty Count
+terraform state list | Select-String "module\.s3_static_website"    | Measure-Object | Select-Object -ExpandProperty Count
+
+# Outputs з конкретного модуля
+terraform output -json | ConvertFrom-Json | Where-Object { $_.s3_website_url }
+terraform output s3_website_url
+terraform output instance_public_ip_primary
+
+# Граф залежностей (DOT-формат, можна скопіювати на https://dreampuf.github.io/GraphvizOnline/)
+terraform graph > graph.dot
+
+# Показати ВСЕ, що в state (великий JSON)
+terraform show -json
+```
+
+### 5.3. Запустити ТІЛЬКИ один модуль (через `-target`)
+
+`terraform plan/apply/destroy` приймає `-target=module.<name>`. Це працює
+навіть коли є залежності через спільний AWS provider.
+
+```powershell
+# Тільки EC2 (без S3)
+terraform plan  -target=module.ec2
+terraform apply -target=module.ec2
+
+# Тільки S3 сайт (без EC2)
+terraform plan  -target=module.s3_static_website
+terraform apply -target=module.s3_static_website
+
+# Конкретний ресурс усередині модуля
+terraform plan  -target=module.ec2.aws_instance.primary
+terraform apply -target=module.s3_static_website.aws_s3_bucket.this
+```
+
+> ⚠️ `-target` призначений для тимчасових операцій. Не покладайтесь на нього
+> в CI/CD — Terraform виводить попередження, що plan з `-target` неповний.
+
+### 5.4. Заголовки у файлах модулів
+
+У верхньому рядку кожного `main.tf` є банер-коментар:
+
+```
+# modules/ec2/main.tf
+# MODULE: ec2
+# Address prefix in state/plan:  module.ec2
+# Provisions:  2 EC2 instances + shared Security Group
+
+# modules/s3-static-website/main.tf
+# MODULE: s3-static-website
+# Address prefix in state/plan:  module.s3_static_website
+# Provisions:  S3 bucket + website hosting + public policy + file uploads
+```
+
+### 5.5. Теги допомагають фільтрувати в AWS Console
+
+Кожен створений ресурс отримує теги з `var.common_tags` плюс `Name`. У AWS
+Console для пошуку фільтруйте за `Project = CMD521` або `ManagedBy = Terraform`.
+
+---
+
+## 6. Структура проєкту
 
 ```
 .
@@ -137,7 +227,7 @@ terraform destroy
 
 ---
 
-## 6. Змінні (root)
+## 7. Змінні (root)
 
 Повний список у `variables.tf`. Усі чутливі поля (`aws_access_key`,
 `aws_secret_key`) помічені `sensitive = true`.
@@ -165,7 +255,7 @@ terraform destroy
 
 ---
 
-## 7. Outputs (root)
+## 8. Outputs (root)
 
 | Ім'я | Опис |
 |------|------|
@@ -193,7 +283,7 @@ terraform output -raw s3_website_url
 
 ---
 
-## 8. Що потрапляє в S3, а що — ні
+## 9. Що потрапляє в S3, а що — ні
 
 Модуль `s3-static-website/upload.tf` використовує `fileset()` для переліку файлів
 і `setsubtract()` для виключень.
@@ -219,7 +309,7 @@ terraform output -raw s3_website_url
 
 ---
 
-## 9. Типові сценарії
+## 10. Типові сценарії
 
 ### 9.1. Перевизначити bucket name
 
@@ -255,7 +345,7 @@ terraform destroy
 
 ---
 
-## 10. Безпека
+## 11. Безпека
 
 - **Credentials** — тільки в `terraform.tfvars`, помічені `sensitive`.
   Ніколи не комітьте.
@@ -271,7 +361,7 @@ terraform destroy
 
 ---
 
-## 11. Troubleshooting
+## 12. Troubleshooting
 
 | Проблема | Рішення |
 |----------|---------|
@@ -285,7 +375,7 @@ terraform destroy
 
 ---
 
-## 12. Корисні команди
+## 13. Корисні команди
 
 ```powershell
 terraform fmt -recursive      # формат

@@ -1,3 +1,9 @@
+###############################################################################
+# MODULE: s3-static-website                                                  #
+# Address prefix in state/plan:  module.s3_static_website                    #
+# Provisions:  S3 bucket + website hosting + public policy + file uploads     #
+###############################################################################
+
 resource "aws_s3_bucket" "this" {
   bucket        = var.bucket_name
   force_destroy = var.force_destroy
