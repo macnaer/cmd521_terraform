@@ -145,21 +145,38 @@ terraform show -json
 
 ### 5.3. Запустити ТІЛЬКИ один модуль (через `-target`)
 
-`terraform plan/apply/destroy` приймає `-target=module.<name>`. Це працює
-навіть коли є залежності через спільний AWS provider.
+`terraform plan/apply/destroy` приймає прапорець `-target module.<name>`.
+Це працює навіть коли є залежності через спільний AWS provider.
+
+> **⚠️ PowerShell і `-target=...` (з `=`).** PowerShell 5.1 інтерпретує
+> `-target=module.ec2` як власний параметр cmdlet і обрізає його —
+> Terraform бачить лише `module.ec2` і пише `Invalid target "module"`.
+> Використовуйте **пробіл** між `-target` і значенням, або зупиніть
+> парсинг через `--%`:
+>
+> ```powershell
+> terraform plan -target module.ec2                  # працює скрізь
+> terraform plan --% -target=module.ec2              # працює в PowerShell
+> ```
 
 ```powershell
 # Тільки EC2 (без S3)
-terraform plan  -target=module.ec2
-terraform apply -target=module.ec2
+terraform plan  -target module.ec2
+terraform apply -target module.ec2
 
 # Тільки S3 сайт (без EC2)
-terraform plan  -target=module.s3_static_website
-terraform apply -target=module.s3_static_website
+terraform plan  -target module.s3_static_website
+terraform apply -target module.s3_static_website
 
 # Конкретний ресурс усередині модуля
-terraform plan  -target=module.ec2.aws_instance.primary
-terraform apply -target=module.s3_static_website.aws_s3_bucket.this
+terraform plan  -target module.ec2.aws_instance.primary
+terraform apply -target module.s3_static_website.aws_s3_bucket.this
+```
+
+Для bash / Git Bash / macOS / Linux синтаксис з `=` теж працює:
+
+```bash
+terraform apply -target=module.ec2
 ```
 
 > ⚠️ `-target` призначений для тимчасових операцій. Не покладайтесь на нього
