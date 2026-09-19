@@ -1,56 +1,53 @@
-provider "aws" {
-  region     = var.aws_region
-  access_key = var.aws_access_key
-  secret_key = var.aws_secret_key
+module "ec2" {
+  source = "./modules/ec2"
+
+  aws_image_id      = var.aws_image_id
+  aws_image_id_2    = var.aws_image_id_2
+  aws_instance_type = var.aws_instance_type
+  aws_key_name      = var.aws_key_name
 }
 
-resource "aws_instance" "EC2_instance" {
-  ami           = var.aws_image_id
-  instance_type = var.aws_instance_type
-  key_name      = var.aws_key_name
-  user_data     = file("${path.module}/files/install.sh")
+module "s3_static_website" {
+  source = "./modules/s3-static-website"
 
-  ebs_block_device {
-    device_name = "/dev/sda1"
-    volume_size = 20
-    volume_type = "gp3"
-    tags = {
-      Name = "RootVolume"
-    }
-  }
-
-  tags = {
-    Name = "Demo Instance"
-  }
-
-  vpc_security_group_ids = [aws_security_group.SG_Terrafrom.id]
+  bucket_name            = var.s3_bucket_name
+  force_destroy          = var.s3_force_destroy
+  versioning_enabled     = var.s3_versioning_enabled
+  website_index_document = var.s3_website_index_document
+  website_error_document = var.s3_website_error_document
 }
 
-resource "aws_security_group" "SG_Terrafrom" {
-  name        = "SG_Terraform"
-  description = "Security group for Terraform demo"
+moved {
+  from = aws_instance.EC2_instance
+  to   = module.ec2.aws_instance.primary
 }
 
-resource "aws_security_group_rule" "ingress_rule" {
-  for_each = {
-    "ssh"  = { from_port = 22, to_port = 22, protocol = "tcp", description = "SSH access" }
-    "http" = { from_port = 80, to_port = 80, protocol = "tcp", description = "HTTP access" }
-    "icmp" = { from_port = -1, to_port = -1, protocol = "icmp", description = "ICMP ping" }
-  }
-  type              = "ingress"
-  from_port         = each.value.from_port
-  to_port           = each.value.to_port
-  protocol          = each.value.protocol
-  cidr_blocks       = ["0.0.0.0/0"]
-  description       = each.value.description
-  security_group_id = aws_security_group.SG_Terrafrom.id
+moved {
+  from = aws_instance.EC2_instance2
+  to   = module.ec2.aws_instance.secondary
 }
 
-resource "aws_security_group_rule" "egress_rule" {
-  type              = "egress"
-  from_port         = 0
-  to_port           = 0
-  protocol          = "-1"
-  cidr_blocks       = ["0.0.0.0/0"]
-  security_group_id = aws_security_group.SG_Terrafrom.id
+moved {
+  from = aws_security_group.SG_Terrafrom
+  to   = module.ec2.aws_security_group.this
+}
+
+moved {
+  from = aws_security_group_rule.ingress_rule["ssh"]
+  to   = module.ec2.aws_security_group_rule.ingress["ssh"]
+}
+
+moved {
+  from = aws_security_group_rule.ingress_rule["http"]
+  to   = module.ec2.aws_security_group_rule.ingress["http"]
+}
+
+moved {
+  from = aws_security_group_rule.ingress_rule["icmp"]
+  to   = module.ec2.aws_security_group_rule.ingress["icmp"]
+}
+
+moved {
+  from = aws_security_group_rule.egress_rule
+  to   = module.ec2.aws_security_group_rule.egress
 }
